@@ -85,7 +85,7 @@ input:focus{outline:2px solid var(--pink);outline-offset:1px}
 </head>
 <body>
 <div class="wrap">
-  <h1>Zaro <em>n</em> Daffa</h1>
+  <h1>Zaro <em>&</em> Daffa</h1>
   <p class="sub">photobooth</p>
 
   <div class="booth">
@@ -347,7 +347,7 @@ $("saveBtn").onclick = async () => {
   const stamp=String(d.getDate()).padStart(2,"0")+"."+String(d.getMonth()+1).padStart(2,"0")+"."+d.getFullYear();
   x.textAlign="center";
   x.fillStyle="#2A1733"; x.font=`700 25px "Fraunces",Georgia,serif`;
-  x.fillText("zaro n daffa photobooth", W/2, H-foot+40);
+  x.fillText("zaro & daffa photobooth", W/2, H-foot+40);
   x.fillStyle="#8A6E93"; x.font=`400 12px "DM Mono",monospace`;
   x.fillText(stamp, W/2, H-foot+66);
   c.toBlob(b=>{

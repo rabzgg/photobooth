@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zaro n Daffa Photobooth</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,400..900,0..100,0..1&family=Space+Grotesk:wght@400..700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --void:#150C1B; --velvet:#241130; --curtain:#3A1B45; --edge:#4E2A5C;
+  --pink:#FF4D8D; --bulb:#FFD166; --paper:#FFF6EC; --muted:#B899BE;
+  --display:"Fraunces",Georgia,serif; --body:"Space Grotesk",system-ui,sans-serif; --mono:"DM Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;padding:20px 16px 56px;
+  background:radial-gradient(1000px 500px at 50% -10%,#3A1B45 0%,transparent 60%),var(--void);
+  color:var(--paper);font-family:var(--body);min-height:100vh;
+}
+.wrap{max-width:720px;margin:0 auto}
+h1{
+  font-family:var(--display);font-variation-settings:"SOFT" 60,"WONK" 1,"opsz" 100;
+  font-weight:800;font-size:clamp(26px,7vw,40px);margin:0 0 4px;letter-spacing:-.02em;line-height:1;
+}
+h1 em{font-style:normal;color:var(--pink)}
+.sub{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin:0 0 22px}
+
+/* booth */
+.booth{background:linear-gradient(180deg,var(--curtain),var(--velvet));border:1px solid var(--edge);
+  border-radius:18px;padding:12px;box-shadow:0 30px 60px -30px #000}
+.bulbs{display:flex;justify-content:space-between;padding:3px 8px}
+.bulbs i{width:8px;height:8px;border-radius:50%;background:#5A3A66;animation:idle 3s ease-in-out infinite}
+@keyframes idle{0%,100%{background:#5A3A66}50%{background:#7A5286}}
+.bulbs.live i{animation:chase .6s linear infinite}
+@keyframes chase{0%,100%{background:#5A3A66;box-shadow:none}40%{background:var(--bulb);box-shadow:0 0 12px var(--bulb)}}
+.screen{position:relative;margin:8px 0;background:#0C0710;border-radius:10px;overflow:hidden;aspect-ratio:4/3}
+#preview{width:100%;height:100%;display:block}
+.tag{position:absolute;bottom:8px;font-family:var(--mono);font-size:10px;letter-spacing:.1em;
+  text-transform:uppercase;background:rgba(12,7,16,.7);padding:3px 8px;border-radius:99px;color:var(--muted)}
+.tag.l{left:8px} .tag.r{right:8px}
+.count{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+  font-family:var(--display);font-weight:800;font-size:clamp(90px,22vw,170px);color:#fff;
+  text-shadow:0 0 40px rgba(255,77,141,.9);font-variation-settings:"WONK" 1}
+.count.on{display:flex}
+.flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+.flash.pop{animation:pop .45s ease-out}
+@keyframes pop{0%{opacity:.95}100%{opacity:0}}
+.status{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10.5px;
+  color:var(--muted);letter-spacing:.06em;text-transform:uppercase;padding:2px 8px 4px}
+.status b{color:var(--bulb);font-weight:500}
+
+/* controls */
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
+button{font-family:var(--body);cursor:pointer;transition:.15s}
+.go{flex:1;min-width:180px;font-family:var(--display);font-weight:800;font-size:19px;
+  font-variation-settings:"SOFT" 60,"WONK" 1;background:var(--pink);color:#210B18;border:none;
+  border-radius:12px;padding:15px;box-shadow:0 10px 30px -12px var(--pink)}
+.go:hover:not(:disabled){transform:translateY(-1px)}
+.go:disabled{opacity:.35;cursor:not-allowed;box-shadow:none}
+.ghost{background:transparent;border:1px solid var(--edge);color:var(--paper);border-radius:10px;
+  padding:11px 14px;font-size:13px}
+.ghost:hover{border-color:var(--pink)}
+.chip{background:transparent;border:1px solid var(--edge);color:var(--paper);border-radius:99px;
+  padding:6px 13px;font-size:12.5px}
+.chip:hover{border-color:var(--pink)}
+.chip[aria-pressed="true"]{background:var(--pink);border-color:var(--pink);color:#210B18;font-weight:700}
+input{background:#160D1D;border:1px solid var(--edge);color:var(--paper);border-radius:10px;
+  padding:11px 13px;font-family:var(--mono);font-size:15px;letter-spacing:.3em;text-transform:uppercase;width:130px}
+input:focus{outline:2px solid var(--pink);outline-offset:1px}
+.label{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--muted);margin:24px 0 8px}
+.code{font-family:var(--mono);font-size:26px;letter-spacing:.35em;color:var(--bulb);
+  background:#160D1D;border:1px dashed var(--edge);border-radius:10px;padding:12px 16px;display:inline-block}
+.tiny{font-family:var(--mono);font-size:10.5px;color:var(--muted);line-height:1.7;margin:8px 0 0}
+.tiny a{color:var(--bulb)}
+/* tray */
+.tray{display:flex;gap:8px;margin-top:10px}
+.tray div{flex:1;aspect-ratio:4/3;border:1px dashed var(--edge);border-radius:6px;overflow:hidden;background:#160D1D}
+.tray img{width:100%;height:100%;object-fit:cover;display:block}
+.hidden{display:none !important}
+@media(prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Zaro <em>n</em> Daffa</h1>
+  <p class="sub">photobooth</p>
+
+  <div class="booth">
+    <div class="bulbs" id="bTop"></div>
+    <div class="screen">
+      <canvas id="preview" width="960" height="720"></canvas>
+      <span class="tag l" id="tagL">left</span>
+      <span class="tag r" id="tagR">right</span>
+      <div class="count" id="count">3</div>
+      <div class="flash" id="flash"></div>
+    </div>
+    <div class="status"><span id="status">Camera is off</span><span id="link">not connected</span></div>
+    <div class="bulbs" id="bBot"></div>
+  </div>
+
+  <!-- step 1 -->
+  <div class="row">
+    <button class="go" id="camBtn">Turn on my camera</button>
+  </div>
+
+  <!-- step 2 -->
+  <div id="connectBox" class="hidden">
+    <p class="label">Get in the same booth</p>
+    <div class="row" id="connectRow">
+      <button class="ghost" id="createBtn">Create a room</button>
+      <input id="codeInput" placeholder="code" maxlength="4">
+      <button class="ghost" id="joinBtn">Join</button>
+    </div>
+    <div id="codeBox" class="hidden">
+      <span class="code" id="codeOut">----</span>
+      <p class="tiny">Send her this link and she just opens it: <a id="shareLink" href="#"></a></p>
+    </div>
+  </div>
+
+  <!-- step 3 -->
+  <p class="label">Look</p>
+  <div class="row" id="filters">
+    <button class="chip" data-f="none" aria-pressed="true">Plain</button>
+    <button class="chip" data-f="warm" aria-pressed="false">Warm</button>
+    <button class="chip" data-f="bw" aria-pressed="false">B&amp;W</button>
+    <button class="chip" data-f="film" aria-pressed="false">Film</button>
+    <button class="chip" id="swapBtn">Swap sides</button>
+  </div>
+
+  <div class="row">
+    <button class="go" id="snapBtn" disabled>Take a photo</button>
+  </div>
+  <p class="tiny">Counts down from 3 on both screens, then snaps at the same moment. Up to 4 photos make a strip.</p>
+
+  <p class="label">Photos</p>
+  <div class="tray" id="tray"><div></div><div></div><div></div><div></div></div>
+  <div class="row">
+    <button class="ghost" id="saveBtn" disabled>Save the strip</button>
+    <button class="ghost" id="clearBtn">Clear</button>
+  </div>
+</div>
+
+<video id="localV" playsinline muted autoplay class="hidden"></video>
+<video id="remoteV" playsinline muted autoplay class="hidden"></video>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+(() => {
+"use strict";
+const $ = id => document.getElementById(id);
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const FILTERS = {
+  none:"none",
+  warm:"saturate(1.25) contrast(1.06) sepia(.12) brightness(1.05)",
+  bw:"grayscale(1) contrast(1.12) brightness(1.03)",
+  film:"sepia(.34) contrast(1.2) saturate(.82) brightness(1.06)"
+};
+const PREFIX = "zdbooth-";
+const ALPHA = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+const state = { filter:"none", role:null, hostLeft:true, photos:[], busy:false };
+let localStream=null, peer=null, conn=null, connected=false;
+const localV=$("localV"), remoteV=$("remoteV");
+const prev=$("preview"), pctx=prev.getContext("2d");
+
+/* bulbs */
+[$("bTop"),$("bBot")].forEach(r=>{for(let i=0;i<14;i++){const b=document.createElement("i");b.style.animationDelay=(i*.05)+"s";r.appendChild(b);}});
+const setBulbs = on => { $("bTop").classList.toggle("live",on); $("bBot").classList.toggle("live",on); };
+const setStatus = t => $("status").textContent = t;
+const setLink = t => $("link").innerHTML = t;
+
+/* ---------- drawing ---------- */
+function drawCover(ctx,src,dx,dy,dw,dh){
+  const sw=src.videoWidth||0, sh=src.videoHeight||0;
+  if(!sw||!sh) return false;
+  const s=Math.max(dw/sw,dh/sh), w=sw*s, h=sh*s;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(dx,dy,dw,dh); ctx.clip();
+  ctx.translate(2*dx+dw,0); ctx.scale(-1,1);          // mirror, selfie style
+  ctx.drawImage(src, dx+(dw-w)/2, dy+(dh-h)/2, w, h);
+  ctx.restore();
+  return true;
+}
+function blank(ctx,dx,dy,dw,dh,txt){
+  ctx.save(); ctx.filter="none";
+  ctx.fillStyle="#1B1020"; ctx.fillRect(dx,dy,dw,dh);
+  ctx.fillStyle="#B899BE"; ctx.textAlign="center"; ctx.textBaseline="middle";
+  ctx.font=`500 ${Math.round(dh*.035)}px "DM Mono",monospace`;
+  ctx.fillText(txt, dx+dw/2, dy+dh/2);
+  ctx.restore();
+}
+function iAmLeft(){ return (state.role==="host") === state.hostLeft; }
+
+function drawScene(ctx,w,h){
+  ctx.save();
+  ctx.fillStyle="#0C0710"; ctx.fillRect(0,0,w,h);
+  ctx.filter = FILTERS[state.filter];
+  const half=w/2, mine=iAmLeft()?0:half, theirs=iAmLeft()?half:0;
+  if(!drawCover(ctx,localV,mine,0,half,h)) blank(ctx,mine,0,half,h,"your camera is off");
+  if(!drawCover(ctx,remoteV,theirs,0,half,h)) blank(ctx,theirs,0,half,h,connected?"connecting":"waiting for her");
+  ctx.restore();
+}
+(function loop(){ drawScene(pctx,prev.width,prev.height); requestAnimationFrame(loop); })();
+
+function updateTags(){
+  $("tagL").textContent = iAmLeft() ? "you" : "her";
+  $("tagR").textContent = iAmLeft() ? "her" : "you";
+}
+updateTags();
+
+/* ---------- camera ---------- */
+$("camBtn").onclick = async () => {
+  try{
+    localStream = await navigator.mediaDevices.getUserMedia({
+      video:{ width:{ideal:1280}, height:{ideal:960}, facingMode:"user" }, audio:false });
+    localV.srcObject = localStream;
+    await localV.play();
+    $("camBtn").parentElement.classList.add("hidden");
+    $("connectBox").classList.remove("hidden");
+    $("snapBtn").disabled = false;
+    setStatus("Camera on");
+    const pre = location.hash.replace("#","").toUpperCase();
+    if(pre){ $("codeInput").value = pre; join(pre); }
+  }catch(err){
+    setStatus("Camera blocked: " + err.name);
+    alert("The camera did not open (" + err.name + "). The page has to be on https:// or localhost, and the camera permission must be allowed.");
+  }
+};
+
+/* ---------- peer plumbing ---------- */
+const PEER_OPTS = { config:{ iceServers:[
+  { urls:"stun:stun.l.google.com:19302" },
+  { urls:"turn:openrelay.metered.ca:80", username:"openrelayproject", credential:"openrelayproject" },
+  { urls:"turn:openrelay.metered.ca:443", username:"openrelayproject", credential:"openrelayproject" }
+]}};
+
+function wireData(c){
+  conn = c;
+  c.on("open", () => { connected = true; setLink("connected"); if(state.role==="host") c.send({t:"side",v:state.hostLeft}); });
+  c.on("data", d => {
+    if(d.t==="snap") shoot(false);
+    if(d.t==="side"){ state.hostLeft = d.v; updateTags(); }
+  });
+  c.on("close", () => { connected=false; setLink("she left"); });
+}
+function wireCall(call){
+  call.on("stream", s => { remoteV.srcObject = s; remoteV.play(); setLink("connected"); });
+  call.on("close", () => { remoteV.srcObject = null; setLink("call ended"); });
+}
+function peerErrors(p){
+  p.on("error", e => {
+    if(e.type==="peer-unavailable") setLink("no room with that code");
+    else setLink("connection problem: " + e.type);
+  });
+}
+
+$("createBtn").onclick = () => {
+  let code=""; for(let i=0;i<4;i++) code += ALPHA[Math.floor(Math.random()*ALPHA.length)];
+  state.role = "host"; updateTags();
+  peer = new Peer(PREFIX+code, PEER_OPTS);
+  peerErrors(peer);
+  peer.on("open", () => {
+    $("connectRow").classList.add("hidden");
+    $("codeBox").classList.remove("hidden");
+    $("codeOut").textContent = code;
+    const url = location.origin + location.pathname + "#" + code;
+    $("shareLink").textContent = url; $("shareLink").href = url;
+    setLink("room " + code + ", waiting");
+  });
+  peer.on("call", call => { call.answer(localStream); wireCall(call); });
+  peer.on("connection", wireData);
+};
+
+function join(code){
+  if(!code || code.length<4){ setLink("type the 4 letter code"); return; }
+  state.role = "guest"; updateTags();
+  peer = new Peer(PEER_OPTS);
+  peerErrors(peer);
+  peer.on("open", () => {
+    setLink("knocking on " + code);
+    wireCall(peer.call(PREFIX+code, localStream));
+    wireData(peer.connect(PREFIX+code));
+  });
+}
+$("joinBtn").onclick = () => join($("codeInput").value.trim().toUpperCase());
+$("codeInput").addEventListener("keydown", e => { if(e.key==="Enter") $("joinBtn").click(); });
+
+/* ---------- controls ---------- */
+$("filters").onclick = e => {
+  const b = e.target.closest("[data-f]"); if(!b) return;
+  state.filter = b.dataset.f;
+  [...$("filters").querySelectorAll("[data-f]")].forEach(c => c.setAttribute("aria-pressed", c===b));
+};
+$("swapBtn").onclick = () => {
+  state.hostLeft = !state.hostLeft; updateTags();
+  if(conn && connected) conn.send({t:"side", v:state.hostLeft});
+};
+
+/* ---------- the snap ---------- */
+const CW=1088, CH=816;
+async function shoot(broadcast){
+  if(state.busy) return;
+  state.busy = true;
+  if(broadcast && conn && connected) conn.send({t:"snap"});
+  $("snapBtn").disabled = true;
+  setBulbs(true); $("count").classList.add("on");
+  for(let k=3;k>0;k--){ $("count").textContent = k; await wait(1000); }
+  $("count").classList.remove("on"); setBulbs(false);
+  const f=$("flash"); f.classList.remove("pop"); void f.offsetWidth; f.classList.add("pop");
+
+  const c = document.createElement("canvas"); c.width=CW; c.height=CH;
+  drawScene(c.getContext("2d"), CW, CH);
+  if(state.photos.length>=4) state.photos.shift();
+  state.photos.push(c);
+  renderTray();
+  setStatus(state.photos.length + " of 4 taken");
+  $("snapBtn").disabled = false;
+  state.busy = false;
+}
+$("snapBtn").onclick = () => shoot(true);
+
+function renderTray(){
+  [...$("tray").children].forEach((slot,i) => {
+    slot.innerHTML = "";
+    if(state.photos[i]){ const im=new Image(); im.src=state.photos[i].toDataURL("image/jpeg",.7); slot.appendChild(im); }
+  });
+  $("saveBtn").disabled = state.photos.length===0;
+}
+$("clearBtn").onclick = () => { state.photos=[]; renderTray(); setStatus("Cleared"); };
+
+/* ---------- strip ---------- */
+$("saveBtn").onclick = async () => {
+  try{ await document.fonts.ready; }catch(e){}
+  const n=state.photos.length, S=2, W=600, pad=26, gap=14, foot=104;
+  const cw=W-pad*2, ch=cw*3/4;
+  const H = pad + ch*n + gap*(n-1) + foot;
+  const c=document.createElement("canvas"); c.width=W*S; c.height=H*S;
+  const x=c.getContext("2d"); x.scale(S,S);
+  x.fillStyle="#FFF6EC"; x.fillRect(0,0,W,H);
+  state.photos.forEach((p,i)=> x.drawImage(p, pad, pad+i*(ch+gap), cw, ch));
+  const d=new Date();
+  const stamp=String(d.getDate()).padStart(2,"0")+"."+String(d.getMonth()+1).padStart(2,"0")+"."+d.getFullYear();
+  x.textAlign="center";
+  x.fillStyle="#2A1733"; x.font=`700 25px "Fraunces",Georgia,serif`;
+  x.fillText("zaro n daffa photobooth", W/2, H-foot+40);
+  x.fillStyle="#8A6E93"; x.font=`400 12px "DM Mono",monospace`;
+  x.fillText(stamp, W/2, H-foot+66);
+  c.toBlob(b=>{
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(b); a.download="zaro-n-daffa-"+Date.now()+".png"; a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  },"image/png");
+};
+
+renderTray();
+})();
+</script>
+</body>
+</html>

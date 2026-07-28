@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Zaro & Daffa Photobooth</title>
+<title>Zaro &amp; Daffa Photobooth</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,400..900,0..100,0..1&family=Space+Grotesk:wght@400..700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -74,6 +74,15 @@ input:focus{outline:2px solid var(--pink);outline-offset:1px}
 .tray{display:flex;gap:8px;margin-top:10px}
 .tray div{flex:1;aspect-ratio:4/3;border:1px dashed var(--edge);border-radius:6px;overflow:hidden;background:#160D1D}
 .tray img{width:100%;height:100%;object-fit:cover;display:block}
+#movie{width:100%;border-radius:12px;margin-top:10px;background:#0C0710;display:block;border:1px solid var(--edge)}
+.tabs{display:flex;gap:6px;margin:20px 0 0}
+.tabs button{flex:1;background:transparent;border:1px solid var(--edge);color:var(--muted);
+  border-radius:11px;padding:11px;font-family:var(--display);font-weight:800;font-size:16px;
+  font-variation-settings:"SOFT" 60,"WONK" 1;letter-spacing:-.01em}
+.tabs button:hover{border-color:var(--pink);color:var(--paper)}
+.tabs button[aria-pressed="true"]{background:var(--pink);border-color:var(--pink);color:#210B18}
+.bar{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10.5px;
+  color:var(--muted);letter-spacing:.06em;text-transform:uppercase;padding:9px 4px 0}
 .hidden{display:none !important}
 .offscreen{position:fixed;left:-9999px;top:0;width:2px;height:2px;opacity:.01;pointer-events:none}
 @media(prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}}
@@ -81,21 +90,8 @@ input:focus{outline:2px solid var(--pink);outline-offset:1px}
 </head>
 <body>
 <div class="wrap">
-  <h1>Zaro <em>&</em> Daffa</h1>
+  <h1>Zaro <em>&amp;</em> Daffa</h1>
   <p class="sub">photobooth</p>
-
-  <div class="booth">
-    <div class="bulbs" id="bTop"></div>
-    <div class="screen">
-      <canvas id="preview" width="960" height="720"></canvas>
-      <span class="tag l" id="tagL">left</span>
-      <span class="tag r" id="tagR">right</span>
-      <div class="count" id="count">3</div>
-      <div class="flash" id="flash"></div>
-    </div>
-    <div class="status"><span id="status">Camera is off</span><span id="link">not connected</span></div>
-    <div class="bulbs" id="bBot"></div>
-  </div>
 
   <div class="row">
     <button class="go" id="camBtn">Turn on my camera</button>
@@ -113,6 +109,26 @@ input:focus{outline:2px solid var(--pink);outline-offset:1px}
       <span class="code" id="codeOut">----</span>
       <p class="tiny">Send her this link and she just opens it: <a id="shareLink" href="#"></a></p>
     </div>
+  </div>
+
+  <div class="tabs">
+    <button id="tabBooth" aria-pressed="true">Photobooth</button>
+    <button id="tabNobar" aria-pressed="false">Nobar</button>
+  </div>
+  <div class="bar"><span id="viewHint">Four shots, one strip</span><span class="linkout">not connected</span></div>
+
+  <div id="viewBooth">
+  <div class="booth">
+    <div class="bulbs" id="bTop"></div>
+    <div class="screen">
+      <canvas id="preview" width="960" height="720"></canvas>
+      <span class="tag l" id="tagL">left</span>
+      <span class="tag r" id="tagR">right</span>
+      <div class="count" id="count">3</div>
+      <div class="flash" id="flash"></div>
+    </div>
+    <div class="status"><span id="status">Camera is off</span><span id="link" class="linkout">not connected</span></div>
+    <div class="bulbs" id="bBot"></div>
   </div>
 
   <p class="label">My face</p>
@@ -141,12 +157,32 @@ input:focus{outline:2px solid var(--pink);outline-offset:1px}
   </div>
   <p class="tiny">Counts down from 3 on both screens, then snaps at the same moment. Up to 4 photos make a strip.</p>
 
+  </div><!-- /viewBooth -->
+
+  <div id="viewNobar" class="hidden">
+  <p class="label">Watch together</p>
+  <div class="row">
+    <button class="ghost" id="fileWatchBtn">Same file, in sync</button>
+    <input type="file" id="movieInput" accept="video/*" class="hidden">
+    <button class="ghost" id="screenBtn">Share my screen</button>
+    <button class="ghost" id="stopWatchBtn">Stop</button>
+    <button class="chip" id="qBtn">Sharp 1080p</button>
+    <button class="chip" id="cinemaBtn" aria-pressed="false">Cinema mode</button>
+  </div>
+  <video id="movie" class="hidden" controls playsinline></video>
+  <p class="tiny" id="shareStats"></p>
+  <p class="tiny" id="watchNote">Same file = you each open your own copy from your own disk, and play, pause and seek stay locked together. No restreaming, full quality, works on a weak link. Share my screen = she sees whatever tab you pick (tab audio works on Chrome desktop only).</p>
+
+  </div><!-- /viewNobar -->
+
+  <div id="viewPhotos">
   <p class="label">Photos</p>
   <div class="tray" id="tray"><div></div><div></div><div></div><div></div></div>
   <div class="row">
     <button class="ghost" id="saveBtn" disabled>Save the strip</button>
     <button class="ghost" id="clearBtn">Clear</button>
   </div>
+  </div><!-- /viewPhotos -->
 </div>
 
 <video id="localV" playsinline muted autoplay class="offscreen"></video>
@@ -176,7 +212,7 @@ const prev=$("preview"), pctx=prev.getContext("2d");
 [$("bTop"),$("bBot")].forEach(r=>{for(let i=0;i<14;i++){const b=document.createElement("i");b.style.animationDelay=(i*.05)+"s";r.appendChild(b);}});
 const setBulbs = on => { $("bTop").classList.toggle("live",on); $("bBot").classList.toggle("live",on); };
 const setStatus = t => $("status").textContent = t;
-const setLink = t => $("link").textContent = t;
+const setLink = t => document.querySelectorAll(".linkout").forEach(e => e.textContent = t);
 
 /* ================= face tracking ================= */
 let landmarker = null, loadingModel = false, lastFaces = [], lastDetect = 0;
@@ -435,11 +471,25 @@ function drawMasks(ctx,w,h){
 function drawScene(ctx,w,h){ drawBase(ctx,w,h); drawMasks(ctx,w,h); }
 
 (function loop(){
+  if(view !== "booth"){ requestAnimationFrame(loop); return; }   // hidden canvas, skip the work
   drawBase(pctx, prev.width, prev.height);
   if(state.myMask!=="none" || state.herMask!=="none") detect(); else lastFaces = [];
   drawMasks(pctx, prev.width, prev.height);
   requestAnimationFrame(loop);
 })();
+
+let view = "booth";
+function setView(v){
+  view = v;
+  $("viewBooth").classList.toggle("hidden", v !== "booth");
+  $("viewPhotos").classList.toggle("hidden", v !== "booth");
+  $("viewNobar").classList.toggle("hidden", v !== "nobar");
+  $("tabBooth").setAttribute("aria-pressed", v === "booth");
+  $("tabNobar").setAttribute("aria-pressed", v === "nobar");
+  $("viewHint").textContent = v === "booth" ? "Four shots, one strip" : "Same file beats screen share";
+}
+$("tabBooth").onclick = () => setView("booth");
+$("tabNobar").onclick = () => setView("nobar");
 
 function updateTags(){
   $("tagL").textContent = iAmLeft() ? "you" : "her";
@@ -537,6 +587,8 @@ function wireData(c){
     if(d.t === "snap") shoot(false);
     if(d.t === "side"){ state.hostLeft = d.v; updateTags(); }
     if(d.t === "mask"){ state.herMask = d.v; if(d.v !== "none") ensureLandmarker(); }
+    if(d.t === "wp") onWatchMsg(d);
+    if(d.t === "cinema") setCameraLite(d.v, false);
   });
   c.on("close", () => { connected = false; setLink("she left"); });
 }
@@ -555,7 +607,7 @@ function createRoom(){
     $("shareLink").textContent = url; $("shareLink").href = url;
     setLink("room " + code + " is open");
   });
-  peer.on("call", call => { call.answer(localStream); wireCall(call); });
+  peer.on("call", handleIncoming);
   peer.on("connection", wireData);
 }
 $("createBtn").onclick = createRoom;
@@ -568,6 +620,7 @@ function join(code){
   if(peer && !peer.destroyed) peer.destroy();
   peer = new Peer(peerOpts());
   wirePeer(peer);
+  peer.on("call", handleIncoming);
   peer.on("open", knock);
 }
 
@@ -588,7 +641,7 @@ function knock(){
 function placeCall(target){
   if(!localStream || !target) return;
   callTries++;
-  try{ wireCall(peer.call(target, localStream)); }
+  try{ wireCall(peer.call(target, localStream, { metadata:{ kind:"cam" } })); }
   catch(e){ setLink("call failed: " + e.message); }
 }
 
@@ -631,6 +684,7 @@ async function shoot(broadcast){
   if(state.busy) return;
   state.busy = true;
   if(broadcast) send({t:"snap"});
+  setView("booth");   // yank both of us back so we see the countdown
   $("snapBtn").disabled = true;
   setBulbs(true); $("count").classList.add("on");
   for(let k=3;k>0;k--){ $("count").textContent = k; await wait(1000); }
@@ -676,10 +730,199 @@ $("saveBtn").onclick = async () => {
   x.fillText(stamp, W/2, H-foot+66);
   c.toBlob(b=>{
     const a=document.createElement("a");
-    a.href=URL.createObjectURL(b); a.download="zaro-&-daffa-"+Date.now()+".png"; a.click();
+    a.href=URL.createObjectURL(b); a.download="zaro-and-daffa-"+Date.now()+".png"; a.click();
     setTimeout(()=>URL.revokeObjectURL(a.href),4000);
   },"image/png");
 };
+
+/* ================= watch together ================= */
+const movie = $("movie");
+let suppress = false;
+
+function showMovie(on){ movie.classList.toggle("hidden", !on); }
+function peerTarget(){ return state.role === "guest" ? PREFIX + joinCode : (conn && conn.peer); }
+
+function handleIncoming(call){
+  const kind = call.metadata && call.metadata.kind;
+  if(kind === "screen"){
+    call.answer();                       // receive only, we send nothing back
+    call.on("stream", s => {
+      movie.srcObject = s; movie.muted = false; movie.play().catch(()=>{});
+      showMovie(true);
+      $("watchNote").textContent = "Watching her screen.";
+    });
+    call.on("close", () => { movie.srcObject = null; showMovie(false); });
+  }else{
+    call.answer(localStream);
+    wireCall(call);
+  }
+}
+
+/* --- mode A: same file on both sides, only the timeline travels --- */
+$("fileWatchBtn").onclick = () => $("movieInput").click();
+$("movieInput").onchange = e => {
+  const f = e.target.files[0]; if(!f) return;
+  movie.srcObject = null;
+  movie.src = URL.createObjectURL(f);
+  movie.muted = false;
+  showMovie(true);
+  $("watchNote").textContent = "Loaded " + f.name + ". She has to open her own copy of the same file, then press play once.";
+};
+
+["play","pause","seeked"].forEach(ev =>
+  movie.addEventListener(ev, () => {
+    if(suppress || movie.srcObject) return;
+    send({ t:"wp", a:ev, at:movie.currentTime });
+  })
+);
+
+function onWatchMsg(d){
+  if(movie.srcObject || !movie.src) return;
+  if(d.a === "sync"){
+    if(!movie.paused && Math.abs(movie.currentTime - d.at) > 1.2 && state.role === "guest"){
+      suppress = true; movie.currentTime = d.at; setTimeout(()=>suppress=false, 400);
+    }
+    return;
+  }
+  suppress = true;
+  if(Math.abs(movie.currentTime - d.at) > 0.4) movie.currentTime = d.at;
+  if(d.a === "play")  movie.play().catch(()=>{});
+  if(d.a === "pause") movie.pause();
+  setTimeout(()=>suppress=false, 400);
+}
+
+/* host keeps the clock, guest quietly corrects its drift */
+setInterval(() => {
+  if(state.role === "host" && movie.src && !movie.srcObject && !movie.paused)
+    send({ t:"wp", a:"sync", at:movie.currentTime });
+}, 4000);
+
+/* --- mode B: pipe a tab across --- */
+const QUALITY = {
+  sharp:  { w:1920, h:1080, fps:60, kbps:8000, label:"Sharp 1080p" },
+  smooth: { w:1280, h:720,  fps:60, kbps:3500, label:"Smooth 720p" }
+};
+let quality = "sharp";
+let screenStream = null, shareCall = null, statsTimer = null, lastBytes = 0, lastTs = 0;
+
+$("qBtn").onclick = () => {
+  quality = quality === "sharp" ? "smooth" : "sharp";
+  $("qBtn").textContent = QUALITY[quality].label;
+  if(screenStream) $("watchNote").textContent = "Stop and share again to apply " + QUALITY[quality].label + ".";
+};
+
+/* cameras and a film fight over the same pipe, so park the cameras while watching */
+function setCameraLite(on, tell){
+  if(localStream) localStream.getVideoTracks().forEach(tr => tr.enabled = !on);
+  $("cinemaBtn").setAttribute("aria-pressed", on);
+  if(tell) send({ t:"cinema", v:on });
+}
+$("cinemaBtn").onclick = () => {
+  const on = $("cinemaBtn").getAttribute("aria-pressed") !== "true";
+  setCameraLite(on, true);
+};
+
+/* opus defaults to mono at a low rate, which mangles film audio */
+function tuneSdp(sdp){
+  return sdp.replace(/(a=fmtp:\d+ [^\r\n]*useinbandfec=1)/g,
+    "$1;stereo=1;sprop-stereo=1;maxaveragebitrate=256000;cbr=0");
+}
+
+async function boostSenders(pc, kbps){
+  if(!pc) return;
+  for(const s of pc.getSenders()){
+    if(!s.track) continue;
+    const prm = s.getParameters();
+    if(!prm.encodings || !prm.encodings.length) prm.encodings = [{}];
+    if(s.track.kind === "video"){
+      prm.encodings[0].maxBitrate = kbps * 1000;
+      prm.encodings[0].maxFramerate = QUALITY[quality].fps;
+      prm.encodings[0].scaleResolutionDownBy = 1;
+      prm.degradationPreference = "maintain-framerate";
+    }else{
+      prm.encodings[0].maxBitrate = 256000;
+    }
+    try{ await s.setParameters(prm); }catch(e){ console.warn("setParameters", e); }
+  }
+}
+
+/* tells you the truth about why it looks bad */
+function watchStats(pc){
+  clearInterval(statsTimer);
+  statsTimer = setInterval(async () => {
+    if(!pc || pc.connectionState === "closed"){ clearInterval(statsTimer); return; }
+    let bytes = 0, ts = 0, w = 0, h = 0, fps = 0, relay = false, pairId = null;
+    const rep = await pc.getStats();
+    rep.forEach(r => {
+      if(r.type === "outbound-rtp" && r.kind === "video"){
+        bytes = r.bytesSent || 0; ts = r.timestamp;
+        w = r.frameWidth || w; h = r.frameHeight || h; fps = Math.round(r.framesPerSecond || 0);
+      }
+      if(r.type === "transport" && r.selectedCandidatePairId) pairId = r.selectedCandidatePairId;
+    });
+    if(pairId){
+      const pair = rep.get(pairId);
+      const lc = pair && rep.get(pair.localCandidateId);
+      relay = !!(lc && lc.candidateType === "relay");
+    }
+    let mbps = 0;
+    if(lastTs && ts > lastTs) mbps = ((bytes - lastBytes) * 8) / ((ts - lastTs) / 1000) / 1e6;
+    lastBytes = bytes; lastTs = ts;
+    if(w) $("shareStats").textContent =
+      w + "x" + h + " at " + fps + " fps, " + mbps.toFixed(1) + " Mbps, " +
+      (relay ? "going through a relay (that is your lag)" : "direct");
+  }, 2000);
+}
+
+$("screenBtn").onclick = async () => {
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia){
+    $("watchNote").textContent = "This browser cannot share a screen. Use Chrome or Edge on a laptop.";
+    return;
+  }
+  if(!connected){ $("watchNote").textContent = "Connect to her first."; return; }
+  const q = QUALITY[quality];
+  try{
+    screenStream = await navigator.mediaDevices.getDisplayMedia({
+      video: { width:{ ideal:q.w }, height:{ ideal:q.h },
+               frameRate:{ ideal:q.fps, max:q.fps }, displaySurface:"browser" },
+      audio: { echoCancellation:false, noiseSuppression:false, autoGainControl:false,
+               channelCount:2, sampleRate:48000 }
+    });
+  }catch(e){ return; }
+
+  const vt = screenStream.getVideoTracks()[0];
+  if(vt) vt.contentHint = "motion";
+  const at = screenStream.getAudioTracks()[0];
+  if(at) at.contentHint = "music";
+
+  movie.srcObject = screenStream; movie.muted = true;
+  movie.play().catch(function(){});
+  showMovie(true);
+  setCameraLite(true, true);
+
+  shareCall = peer.call(peerTarget(), screenStream, {
+    metadata:{ kind:"screen" },
+    sdpTransform: tuneSdp
+  });
+  const pc = shareCall.peerConnection;
+  setTimeout(function(){ boostSenders(pc, q.kbps); watchStats(pc); }, 800);
+
+  $("watchNote").textContent = at
+    ? "Sharing. Keep the tab you picked visible, a minimised tab gets throttled by the browser."
+    : "Sharing, but no audio track. Re-share and tick 'Also share tab audio' in the dialog.";
+  if(vt) vt.addEventListener("ended", stopWatch);
+};
+
+function stopWatch(){
+  clearInterval(statsTimer); $("shareStats").textContent = "";
+  if(shareCall){ try{ shareCall.close(); }catch(e){} shareCall = null; }
+  if(screenStream){ screenStream.getTracks().forEach(t => t.stop()); screenStream = null; }
+  setCameraLite(false, true);
+  movie.pause(); movie.srcObject = null; movie.removeAttribute("src"); movie.load();
+  showMovie(false);
+  $("watchNote").textContent = "Stopped.";
+}
+$("stopWatchBtn").onclick = stopWatch;
 
 renderTray();
 })();

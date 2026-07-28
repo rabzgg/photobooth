@@ -75,6 +75,7 @@ input:focus{outline:2px solid var(--pink);outline-offset:1px}
 .tray div{flex:1;aspect-ratio:4/3;border:1px dashed var(--edge);border-radius:6px;overflow:hidden;background:#160D1D}
 .tray img{width:100%;height:100%;object-fit:cover;display:block}
 .hidden{display:none !important}
+.offscreen{position:fixed;left:-9999px;top:0;width:2px;height:2px;opacity:.01;pointer-events:none}
 @media(prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}}
 </style>
 </head>
@@ -106,10 +107,11 @@ input:focus{outline:2px solid var(--pink);outline-offset:1px}
       <button class="ghost" id="createBtn">Create a room</button>
       <input id="codeInput" placeholder="code" maxlength="4">
       <button class="ghost" id="joinBtn">Join</button>
+      <button class="ghost" id="retryBtn">Retry</button>
     </div>
     <div id="codeBox" class="hidden">
       <span class="code" id="codeOut">----</span>
-      <p class="tiny">Send zaro this link and she just opens it: <a id="shareLink" href="#"></a></p>
+      <p class="tiny">Send her this link and she just opens it: <a id="shareLink" href="#"></a></p>
     </div>
   </div>
 
@@ -147,8 +149,8 @@ input:focus{outline:2px solid var(--pink);outline-offset:1px}
   </div>
 </div>
 
-<video id="localV" playsinline muted autoplay class="hidden"></video>
-<video id="remoteV" playsinline muted autoplay class="hidden"></video>
+<video id="localV" playsinline muted autoplay class="offscreen"></video>
+<video id="remoteV" playsinline muted autoplay class="offscreen"></video>
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
@@ -412,7 +414,7 @@ function drawBase(ctx,w,h){
   ctx.filter = FILTERS[state.filter];
   const half=w/2, mine=iAmLeft()?0:half, theirs=iAmLeft()?half:0;
   if(!drawCover(ctx,localV,mine,0,half,h)) blank(ctx,mine,0,half,h,"your camera is off");
-  if(!drawCover(ctx,remoteV,theirs,0,half,h)) blank(ctx,theirs,0,half,h,connected?"connecting":"waiting for zaro");
+  if(!drawCover(ctx,remoteV,theirs,0,half,h)) blank(ctx,theirs,0,half,h,connected?"connecting":"waiting for her");
   ctx.restore();
 }
 
@@ -440,8 +442,8 @@ function drawScene(ctx,w,h){ drawBase(ctx,w,h); drawMasks(ctx,w,h); }
 })();
 
 function updateTags(){
-  $("tagL").textContent = iAmLeft() ? "you" : "zaro";
-  $("tagR").textContent = iAmLeft() ? "zaro" : "you";
+  $("tagL").textContent = iAmLeft() ? "you" : "her";
+  $("tagR").textContent = iAmLeft() ? "her" : "you";
 }
 updateTags();
 
@@ -465,66 +467,145 @@ $("camBtn").onclick = async () => {
 };
 
 /* ================= peer ================= */
-const PEER_OPTS = { config:{ iceServers:[
-  { urls:"stun:stun.l.google.com:19302" },
-  { urls:"turn:openrelay.metered.ca:80", username:"openrelayproject", credential:"openrelayproject" },
-  { urls:"turn:openrelay.metered.ca:443", username:"openrelayproject", credential:"openrelayproject" }
-]}};
+/* OPTIONAL BUT RECOMMENDED: a free Metered account gives you a working relay
+   (20 GB a month, no card). Sign up at metered.ca, then fill these two lines. */
+const TURN_APP = "";   // your metered.live subdomain, e.g. "zarodaffa"
+const TURN_KEY = "";   // your API key
 
+let ICE = [
+  { urls:"stun:stun.l.google.com:19302" },
+  { urls:"stun:stun1.l.google.com:19302" },
+  { urls:"stun:stun.cloudflare.com:3478" }
+];
+
+(async function loadTurn(){
+  if(!TURN_APP || !TURN_KEY) return;
+  try{
+    const r = await fetch(`https://${TURN_APP}.metered.live/api/v1/turn/credentials?apiKey=${TURN_KEY}`);
+    const list = await r.json();
+    if(Array.isArray(list) && list.length){ ICE = ICE.concat(list); setLink("relay loaded"); }
+  }catch(e){ console.warn("TURN credentials failed", e); }
+})();
+
+const peerOpts = () => ({ config:{ iceServers: ICE } });
 function send(msg){ if(conn && connected) conn.send(msg); }
+
+let joinCode = null, attempts = 0, retryTimer = null, callTries = 0;
+const haveRemote = () => !!(remoteV.srcObject && remoteV.readyState >= 2);
+
+function wirePeer(p){
+  p.on("error", e => {
+    if(e.type === "peer-unavailable") setLink("room not open yet");
+    else if(e.type === "unavailable-id"){ setLink("code taken, new one coming"); p.destroy(); createRoom(); }
+    else if(e.type === "network" || e.type === "server-error"){
+      setLink("signal server hiccup");
+      setTimeout(() => { try{ p.reconnect(); }catch(_){} }, 2000);
+    } else setLink("problem: " + e.type);
+  });
+  p.on("disconnected", () => { setLink("reconnecting"); try{ p.reconnect(); }catch(_){} });
+}
+
+function watchIce(call){
+  const pc = call.peerConnection;
+  if(!pc) return;
+  pc.oniceconnectionstatechange = () => {
+    const s = pc.iceConnectionState;
+    if(s === "checking") setLink("finding a path");
+    else if(s === "connected" || s === "completed") setLink("connected");
+    else if(s === "disconnected") setLink("path dropped");
+    else if(s === "failed") setLink("no path, needs a relay");
+  };
+}
+
+function wireCall(call){
+  call.on("stream", s => { remoteV.srcObject = s; remoteV.play().catch(()=>{}); setLink("connected"); });
+  call.on("close", () => { remoteV.srcObject = null; setLink("call ended"); });
+  call.on("error", () => setLink("call error"));
+  watchIce(call);
+}
 
 function wireData(c){
   conn = c;
-  c.on("open", () => {
+  const opened = () => {
     connected = true; setLink("connected");
-    if(state.role==="host") c.send({t:"side",v:state.hostLeft});
-    c.send({t:"mask", v:state.myMask});
-  });
+    clearTimeout(retryTimer);
+    if(state.role === "host") c.send({ t:"side", v:state.hostLeft });
+    c.send({ t:"mask", v:state.myMask });
+  };
+  if(c.open) opened(); else c.on("open", opened);
   c.on("data", d => {
-    if(d.t==="snap") shoot(false);
-    if(d.t==="side"){ state.hostLeft = d.v; updateTags(); }
-    if(d.t==="mask"){ state.herMask = d.v; if(d.v!=="none") ensureLandmarker(); }
+    if(d.t === "snap") shoot(false);
+    if(d.t === "side"){ state.hostLeft = d.v; updateTags(); }
+    if(d.t === "mask"){ state.herMask = d.v; if(d.v !== "none") ensureLandmarker(); }
   });
-  c.on("close", () => { connected=false; setLink("she left"); });
-}
-function wireCall(call){
-  call.on("stream", s => { remoteV.srcObject = s; remoteV.play(); setLink("connected"); });
-  call.on("close", () => { remoteV.srcObject = null; setLink("call ended"); });
-}
-function peerErrors(p){
-  p.on("error", e => setLink(e.type==="peer-unavailable" ? "no room with that code" : "problem: "+e.type));
+  c.on("close", () => { connected = false; setLink("she left"); });
 }
 
-$("createBtn").onclick = () => {
-  let code=""; for(let i=0;i<4;i++) code += ALPHA[Math.floor(Math.random()*ALPHA.length)];
+/* ---- host ---- */
+function createRoom(){
+  let code = ""; for(let i=0;i<4;i++) code += ALPHA[Math.floor(Math.random()*ALPHA.length)];
   state.role = "host"; updateTags();
-  peer = new Peer(PREFIX+code, PEER_OPTS);
-  peerErrors(peer);
+  peer = new Peer(PREFIX + code, peerOpts());
+  wirePeer(peer);
   peer.on("open", () => {
     $("connectRow").classList.add("hidden");
     $("codeBox").classList.remove("hidden");
     $("codeOut").textContent = code;
     const url = location.origin + location.pathname + "#" + code;
     $("shareLink").textContent = url; $("shareLink").href = url;
-    setLink("room " + code + ", waiting");
+    setLink("room " + code + " is open");
   });
   peer.on("call", call => { call.answer(localStream); wireCall(call); });
   peer.on("connection", wireData);
-};
-
-function join(code){
-  if(!code || code.length<4){ setLink("type the 4 letter code"); return; }
-  state.role = "guest"; updateTags();
-  peer = new Peer(PEER_OPTS);
-  peerErrors(peer);
-  peer.on("open", () => {
-    setLink("knocking on " + code);
-    wireCall(peer.call(PREFIX+code, localStream));
-    wireData(peer.connect(PREFIX+code));
-  });
 }
+$("createBtn").onclick = createRoom;
+
+/* ---- guest ---- */
+function join(code){
+  if(!code || code.length < 4){ setLink("type the 4 letter code"); return; }
+  joinCode = code; attempts = 0; callTries = 0;
+  state.role = "guest"; updateTags();
+  if(peer && !peer.destroyed) peer.destroy();
+  peer = new Peer(peerOpts());
+  wirePeer(peer);
+  peer.on("open", knock);
+}
+
+/* keeps knocking, so it does not matter who opens the page first */
+function knock(){
+  if(connected || !peer || peer.destroyed) return;
+  if(attempts >= 20){ setLink("gave up, press retry"); return; }
+  attempts++;
+  setLink("knocking on " + joinCode + " (" + attempts + ")");
+  if(conn && !conn.open){ try{ conn.close(); }catch(_){} }
+  const c = peer.connect(PREFIX + joinCode, { reliable:true });
+  wireData(c);
+  c.on("open", () => { callTries = 0; placeCall(PREFIX + joinCode); });
+  clearTimeout(retryTimer);
+  retryTimer = setTimeout(knock, 5000);
+}
+
+function placeCall(target){
+  if(!localStream || !target) return;
+  callTries++;
+  try{ wireCall(peer.call(target, localStream)); }
+  catch(e){ setLink("call failed: " + e.message); }
+}
+
+/* watchdog: data is through but no video? try the call again from either side */
+setInterval(() => {
+  if(!connected || haveRemote() || callTries > 4) return;
+  placeCall(state.role === "guest" ? PREFIX + joinCode : (conn && conn.peer));
+}, 9000);
+
 $("joinBtn").onclick = () => join($("codeInput").value.trim().toUpperCase());
-$("codeInput").addEventListener("keydown", e => { if(e.key==="Enter") $("joinBtn").click(); });
+$("retryBtn").onclick = () => {
+  connected = false; callTries = 0; attempts = 0;
+  if(state.role === "guest" && joinCode) knock();
+  else setLink("create a room or type a code first");
+};
+$("codeInput").addEventListener("keydown", e => { if(e.key === "Enter") $("joinBtn").click(); });
+addEventListener("beforeunload", () => { try{ peer && peer.destroy(); }catch(_){} });
 
 /* ================= controls ================= */
 $("masks").onclick = async e => {

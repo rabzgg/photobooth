@@ -412,7 +412,7 @@ function drawBase(ctx,w,h){
   ctx.filter = FILTERS[state.filter];
   const half=w/2, mine=iAmLeft()?0:half, theirs=iAmLeft()?half:0;
   if(!drawCover(ctx,localV,mine,0,half,h)) blank(ctx,mine,0,half,h,"your camera is off");
-  if(!drawCover(ctx,remoteV,theirs,0,half,h)) blank(ctx,theirs,0,half,h,connected?"connecting":"waiting for her");
+  if(!drawCover(ctx,remoteV,theirs,0,half,h)) blank(ctx,theirs,0,half,h,connected?"connecting":"waiting for zaro");
   ctx.restore();
 }
 

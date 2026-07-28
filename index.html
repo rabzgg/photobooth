@@ -109,7 +109,7 @@ input:focus{outline:2px solid var(--pink);outline-offset:1px}
     </div>
     <div id="codeBox" class="hidden">
       <span class="code" id="codeOut">----</span>
-      <p class="tiny">Send her this link and she just opens it: <a id="shareLink" href="#"></a></p>
+      <p class="tiny">Send zaro this link and she just opens it: <a id="shareLink" href="#"></a></p>
     </div>
   </div>
 
@@ -440,8 +440,8 @@ function drawScene(ctx,w,h){ drawBase(ctx,w,h); drawMasks(ctx,w,h); }
 })();
 
 function updateTags(){
-  $("tagL").textContent = iAmLeft() ? "you" : "her";
-  $("tagR").textContent = iAmLeft() ? "her" : "you";
+  $("tagL").textContent = iAmLeft() ? "you" : "zaro";
+  $("tagR").textContent = iAmLeft() ? "zaro" : "you";
 }
 updateTags();
 

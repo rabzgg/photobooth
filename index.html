@@ -20,14 +20,11 @@ body{
   color:var(--paper);font-family:var(--body);min-height:100vh;
 }
 .wrap{max-width:720px;margin:0 auto}
-h1{
-  font-family:var(--display);font-variation-settings:"SOFT" 60,"WONK" 1,"opsz" 100;
-  font-weight:800;font-size:clamp(26px,7vw,40px);margin:0 0 4px;letter-spacing:-.02em;line-height:1;
-}
+h1{font-family:var(--display);font-variation-settings:"SOFT" 60,"WONK" 1,"opsz" 100;
+  font-weight:800;font-size:clamp(26px,7vw,40px);margin:0 0 4px;letter-spacing:-.02em;line-height:1}
 h1 em{font-style:normal;color:var(--pink)}
 .sub{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin:0 0 22px}
 
-/* booth */
 .booth{background:linear-gradient(180deg,var(--curtain),var(--velvet));border:1px solid var(--edge);
   border-radius:18px;padding:12px;box-shadow:0 30px 60px -30px #000}
 .bulbs{display:flex;justify-content:space-between;padding:3px 8px}
@@ -49,9 +46,7 @@ h1 em{font-style:normal;color:var(--pink)}
 @keyframes pop{0%{opacity:.95}100%{opacity:0}}
 .status{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10.5px;
   color:var(--muted);letter-spacing:.06em;text-transform:uppercase;padding:2px 8px 4px}
-.status b{color:var(--bulb);font-weight:500}
 
-/* controls */
 .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
 button{font-family:var(--body);cursor:pointer;transition:.15s}
 .go{flex:1;min-width:180px;font-family:var(--display);font-weight:800;font-size:19px;
@@ -66,6 +61,7 @@ button{font-family:var(--body);cursor:pointer;transition:.15s}
   padding:6px 13px;font-size:12.5px}
 .chip:hover{border-color:var(--pink)}
 .chip[aria-pressed="true"]{background:var(--pink);border-color:var(--pink);color:#210B18;font-weight:700}
+.chip:disabled{opacity:.4;cursor:wait}
 input{background:#160D1D;border:1px solid var(--edge);color:var(--paper);border-radius:10px;
   padding:11px 13px;font-family:var(--mono);font-size:15px;letter-spacing:.3em;text-transform:uppercase;width:130px}
 input:focus{outline:2px solid var(--pink);outline-offset:1px}
@@ -75,7 +71,6 @@ input:focus{outline:2px solid var(--pink);outline-offset:1px}
   background:#160D1D;border:1px dashed var(--edge);border-radius:10px;padding:12px 16px;display:inline-block}
 .tiny{font-family:var(--mono);font-size:10.5px;color:var(--muted);line-height:1.7;margin:8px 0 0}
 .tiny a{color:var(--bulb)}
-/* tray */
 .tray{display:flex;gap:8px;margin-top:10px}
 .tray div{flex:1;aspect-ratio:4/3;border:1px dashed var(--edge);border-radius:6px;overflow:hidden;background:#160D1D}
 .tray img{width:100%;height:100%;object-fit:cover;display:block}
@@ -101,12 +96,10 @@ input:focus{outline:2px solid var(--pink);outline-offset:1px}
     <div class="bulbs" id="bBot"></div>
   </div>
 
-  <!-- step 1 -->
   <div class="row">
     <button class="go" id="camBtn">Turn on my camera</button>
   </div>
 
-  <!-- step 2 -->
   <div id="connectBox" class="hidden">
     <p class="label">Get in the same booth</p>
     <div class="row" id="connectRow">
@@ -120,8 +113,19 @@ input:focus{outline:2px solid var(--pink);outline-offset:1px}
     </div>
   </div>
 
-  <!-- step 3 -->
-  <p class="label">Look</p>
+  <p class="label">My face</p>
+  <div class="row" id="masks">
+    <button class="chip" data-m="none" aria-pressed="true">Nothing</button>
+    <button class="chip" data-m="bunny" aria-pressed="false">Bunny</button>
+    <button class="chip" data-m="devil" aria-pressed="false">Devil</button>
+    <button class="chip" data-m="cat" aria-pressed="false">Cat</button>
+    <button class="chip" data-m="flower" aria-pressed="false">Flowers</button>
+    <button class="chip" data-m="hearts" aria-pressed="false">Heart eyes</button>
+    <button class="chip" data-m="shades" aria-pressed="false">Shades</button>
+  </div>
+  <p class="tiny" id="maskNote">First one takes a few seconds to load the face tracker (about 3 MB, once per session).</p>
+
+  <p class="label">Colour</p>
   <div class="row" id="filters">
     <button class="chip" data-f="none" aria-pressed="true">Plain</button>
     <button class="chip" data-f="warm" aria-pressed="false">Warm</button>
@@ -152,7 +156,6 @@ input:focus{outline:2px solid var(--pink);outline-offset:1px}
 "use strict";
 const $ = id => document.getElementById(id);
 const wait = ms => new Promise(r => setTimeout(r, ms));
-const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const FILTERS = {
   none:"none",
@@ -163,25 +166,232 @@ const FILTERS = {
 const PREFIX = "zdbooth-";
 const ALPHA = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
-const state = { filter:"none", role:null, hostLeft:true, photos:[], busy:false };
+const state = { filter:"none", myMask:"none", herMask:"none", role:null, hostLeft:true, photos:[], busy:false };
 let localStream=null, peer=null, conn=null, connected=false;
 const localV=$("localV"), remoteV=$("remoteV");
 const prev=$("preview"), pctx=prev.getContext("2d");
 
-/* bulbs */
 [$("bTop"),$("bBot")].forEach(r=>{for(let i=0;i<14;i++){const b=document.createElement("i");b.style.animationDelay=(i*.05)+"s";r.appendChild(b);}});
 const setBulbs = on => { $("bTop").classList.toggle("live",on); $("bBot").classList.toggle("live",on); };
 const setStatus = t => $("status").textContent = t;
-const setLink = t => $("link").innerHTML = t;
+const setLink = t => $("link").textContent = t;
 
-/* ---------- drawing ---------- */
+/* ================= face tracking ================= */
+let landmarker = null, loadingModel = false, lastFaces = [], lastDetect = 0;
+
+async function ensureLandmarker(){
+  if(landmarker || loadingModel) return;
+  loadingModel = true;
+  $("maskNote").textContent = "Loading the face tracker...";
+  [...$("masks").children].forEach(c => c.disabled = true);
+  try{
+    const vision = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs");
+    const files = await vision.FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+    landmarker = await vision.FaceLandmarker.createFromOptions(files, {
+      baseOptions:{
+        modelAssetPath:"https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+        delegate:"GPU"
+      },
+      runningMode:"VIDEO", numFaces:2
+    });
+    $("maskNote").textContent = "Face tracker ready. Both faces get tracked at once.";
+  }catch(err){
+    $("maskNote").textContent = "Face tracker failed to load (" + err.message + "). Filters are off, everything else still works.";
+    state.myMask = "none";
+    [...$("masks").children].forEach(c => c.setAttribute("aria-pressed", c.dataset.m==="none"));
+  }finally{
+    loadingModel = false;
+    [...$("masks").children].forEach(c => c.disabled = false);
+  }
+}
+
+function detect(){
+  if(!landmarker) { lastFaces = []; return; }
+  const now = performance.now();
+  if(now - lastDetect < 50) return;      // cap at ~20 detections a second
+  lastDetect = now;
+  try{
+    const res = landmarker.detectForVideo(prev, now);
+    lastFaces = res.faceLandmarks || [];
+  }catch(e){ /* skip a frame */ }
+}
+
+/* geometry of one face, in canvas pixels */
+function faceRig(lm, w, h){
+  const P = i => ({ x: lm[i].x*w, y: lm[i].y*h });
+  const a = P(234), b = P(454), top = P(10), chin = P(152), nose = P(1);
+  const width = Math.hypot(b.x-a.x, b.y-a.y);
+  const angle = Math.atan2(b.y-a.y, b.x-a.x);
+  return { a, b, top, chin, nose, width, angle,
+           eyeR: P(468), eyeL: P(473), eyeOutR: P(33), eyeOutL: P(263) };
+}
+
+/* ---- individual masks, all drawn in head space ---- */
+function inHead(ctx, f, fn){
+  ctx.save();
+  ctx.translate(f.top.x, f.top.y);
+  ctx.rotate(f.angle);
+  fn(ctx, f.width);
+  ctx.restore();
+}
+
+const MASKS = {
+  none(){},
+
+  bunny(ctx, f){
+    inHead(ctx, f, (c,w) => {
+      [-1,1].forEach(d => {
+        c.save();
+        c.translate(d*0.24*w, -0.04*w);
+        c.rotate(d*0.20);
+        c.fillStyle = "#FFF6EC";
+        c.beginPath(); c.ellipse(0,-0.44*w, 0.135*w, 0.48*w, 0, 0, 7); c.fill();
+        c.fillStyle = "#FF9FC1";
+        c.beginPath(); c.ellipse(0,-0.44*w, 0.068*w, 0.35*w, 0, 0, 7); c.fill();
+        c.restore();
+      });
+    });
+    // nose + whiskers
+    ctx.save();
+    ctx.translate(f.nose.x, f.nose.y); ctx.rotate(f.angle);
+    const w = f.width;
+    ctx.fillStyle = "#FF6FA3";
+    ctx.beginPath(); ctx.ellipse(0,0, 0.055*w, 0.042*w, 0, 0, 7); ctx.fill();
+    ctx.strokeStyle = "rgba(255,246,236,.85)"; ctx.lineWidth = Math.max(1, 0.012*w); ctx.lineCap="round";
+    [-1,1].forEach(d => [-0.06,0.02,0.10].forEach(dy => {
+      ctx.beginPath();
+      ctx.moveTo(d*0.09*w, dy*w);
+      ctx.lineTo(d*0.38*w, (dy-0.05)*w);
+      ctx.stroke();
+    }));
+    ctx.restore();
+  },
+
+  devil(ctx, f){
+    inHead(ctx, f, (c,w) => {
+      [-1,1].forEach(d => {
+        c.save();
+        c.translate(d*0.30*w, 0.02*w);
+        c.rotate(d*0.28);
+        const g = c.createLinearGradient(0, 0, 0, -0.55*w);
+        g.addColorStop(0,"#7A0C26"); g.addColorStop(1,"#FF3B5C");
+        c.fillStyle = g;
+        c.beginPath();
+        c.moveTo(-0.11*w, 0);
+        c.quadraticCurveTo(-0.09*w, -0.36*w, 0.01*w, -0.54*w);
+        c.quadraticCurveTo(0.11*w, -0.32*w, 0.11*w, 0);
+        c.closePath(); c.fill();
+        c.restore();
+      });
+    });
+  },
+
+  cat(ctx, f){
+    inHead(ctx, f, (c,w) => {
+      [-1,1].forEach(d => {
+        c.save();
+        c.translate(d*0.28*w, 0.02*w);
+        c.rotate(d*0.16);
+        c.fillStyle = "#241130";
+        c.beginPath();
+        c.moveTo(-0.17*w, 0); c.lineTo(0, -0.42*w); c.lineTo(0.17*w, 0);
+        c.closePath(); c.fill();
+        c.fillStyle = "#FF9FC1";
+        c.beginPath();
+        c.moveTo(-0.09*w, -0.03*w); c.lineTo(0, -0.28*w); c.lineTo(0.09*w, -0.03*w);
+        c.closePath(); c.fill();
+        c.restore();
+      });
+    });
+    ctx.save();
+    ctx.translate(f.nose.x, f.nose.y); ctx.rotate(f.angle);
+    const w = f.width;
+    ctx.fillStyle = "#FF6FA3";
+    ctx.beginPath();
+    ctx.moveTo(-0.06*w,-0.02*w); ctx.lineTo(0.06*w,-0.02*w); ctx.lineTo(0,0.05*w);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = "rgba(255,246,236,.8)"; ctx.lineWidth = Math.max(1,0.012*w); ctx.lineCap="round";
+    [-1,1].forEach(d => [-0.04,0.03,0.10].forEach(dy => {
+      ctx.beginPath(); ctx.moveTo(d*0.09*w, dy*w); ctx.lineTo(d*0.36*w, (dy-0.04)*w); ctx.stroke();
+    }));
+    ctx.restore();
+  },
+
+  flower(ctx, f){
+    const cols = ["#FF6FA3","#FFD166","#FFF6EC","#C58CFF","#7FE0C0"];
+    inHead(ctx, f, (c,w) => {
+      for(let i=0;i<9;i++){
+        const t = (i/8 - .5) * Math.PI * 0.95;
+        const x = Math.sin(t) * 0.52 * w;
+        const y = -Math.cos(t) * 0.26 * w - 0.02*w;
+        const r = (i%2 ? 0.055 : 0.075) * w;
+        c.save(); c.translate(x,y);
+        c.fillStyle = cols[i % cols.length];
+        for(let p=0;p<5;p++){
+          c.beginPath();
+          c.ellipse(Math.cos(p*1.256)*r*.8, Math.sin(p*1.256)*r*.8, r*.62, r*.62, 0, 0, 7);
+          c.fill();
+        }
+        c.fillStyle = "#FFD166";
+        c.beginPath(); c.ellipse(0,0,r*.42,r*.42,0,0,7); c.fill();
+        c.restore();
+      }
+    });
+  },
+
+  hearts(ctx, f){
+    const w = f.width;
+    [f.eyeR, f.eyeL].forEach(e => {
+      ctx.save();
+      ctx.translate(e.x, e.y); ctx.rotate(f.angle);
+      const s = 0.13*w;
+      ctx.fillStyle = "#FF3B6B";
+      ctx.beginPath();
+      ctx.moveTo(0, s*0.85);
+      ctx.bezierCurveTo(-s*1.5, -s*0.35, -s*0.55, -s*1.25, 0, -s*0.42);
+      ctx.bezierCurveTo(s*0.55, -s*1.25, s*1.5, -s*0.35, 0, s*0.85);
+      ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,.75)";
+      ctx.beginPath(); ctx.ellipse(-s*0.42,-s*0.42, s*0.17, s*0.12, -0.5, 0, 7); ctx.fill();
+      ctx.restore();
+    });
+  },
+
+  shades(ctx, f){
+    const w = f.width;
+    const cx = (f.eyeOutR.x + f.eyeOutL.x)/2, cy = (f.eyeOutR.y + f.eyeOutL.y)/2;
+    ctx.save();
+    ctx.translate(cx, cy); ctx.rotate(f.angle);
+    ctx.fillStyle = "#150C1B";
+    const lw = 0.44*w, lh = 0.26*w, gap = 0.09*w;
+    [-1,1].forEach(d => {
+      ctx.beginPath();
+      ctx.roundRect(d>0 ? gap/2 : -gap/2 - lw, -lh/2, lw, lh, 0.07*w);
+      ctx.fill();
+    });
+    ctx.fillRect(-gap/2, -0.05*w, gap, 0.06*w);
+    ctx.fillRect(-lw-gap/2-0.16*w, -0.05*w, 0.16*w, 0.05*w);
+    ctx.fillRect(lw+gap/2, -0.05*w, 0.16*w, 0.05*w);
+    ctx.fillStyle = "rgba(255,255,255,.22)";
+    [-1,1].forEach(d => {
+      ctx.save();
+      ctx.translate(d>0 ? gap/2 : -gap/2 - lw, -lh/2);
+      ctx.beginPath(); ctx.moveTo(lw*0.12,lh); ctx.lineTo(lw*0.38,0); ctx.lineTo(lw*0.52,0); ctx.lineTo(lw*0.26,lh);
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+    });
+    ctx.restore();
+  }
+};
+
+/* ================= drawing ================= */
 function drawCover(ctx,src,dx,dy,dw,dh){
   const sw=src.videoWidth||0, sh=src.videoHeight||0;
   if(!sw||!sh) return false;
   const s=Math.max(dw/sw,dh/sh), w=sw*s, h=sh*s;
   ctx.save();
   ctx.beginPath(); ctx.rect(dx,dy,dw,dh); ctx.clip();
-  ctx.translate(2*dx+dw,0); ctx.scale(-1,1);          // mirror, selfie style
+  ctx.translate(2*dx+dw,0); ctx.scale(-1,1);
   ctx.drawImage(src, dx+(dw-w)/2, dy+(dh-h)/2, w, h);
   ctx.restore();
   return true;
@@ -196,7 +406,7 @@ function blank(ctx,dx,dy,dw,dh,txt){
 }
 function iAmLeft(){ return (state.role==="host") === state.hostLeft; }
 
-function drawScene(ctx,w,h){
+function drawBase(ctx,w,h){
   ctx.save();
   ctx.fillStyle="#0C0710"; ctx.fillRect(0,0,w,h);
   ctx.filter = FILTERS[state.filter];
@@ -205,7 +415,29 @@ function drawScene(ctx,w,h){
   if(!drawCover(ctx,remoteV,theirs,0,half,h)) blank(ctx,theirs,0,half,h,connected?"connecting":"waiting for her");
   ctx.restore();
 }
-(function loop(){ drawScene(pctx,prev.width,prev.height); requestAnimationFrame(loop); })();
+
+function drawMasks(ctx,w,h){
+  if(!lastFaces.length) return;
+  ctx.save();
+  ctx.filter = FILTERS[state.filter];
+  lastFaces.forEach(lm => {
+    const f = faceRig(lm, w, h);
+    const faceIsLeft = f.nose.x < w/2;
+    const mine = (faceIsLeft === iAmLeft());
+    const key = mine ? state.myMask : state.herMask;
+    if(MASKS[key]) MASKS[key](ctx, f);
+  });
+  ctx.restore();
+}
+
+function drawScene(ctx,w,h){ drawBase(ctx,w,h); drawMasks(ctx,w,h); }
+
+(function loop(){
+  drawBase(pctx, prev.width, prev.height);
+  if(state.myMask!=="none" || state.herMask!=="none") detect(); else lastFaces = [];
+  drawMasks(pctx, prev.width, prev.height);
+  requestAnimationFrame(loop);
+})();
 
 function updateTags(){
   $("tagL").textContent = iAmLeft() ? "you" : "her";
@@ -213,7 +445,7 @@ function updateTags(){
 }
 updateTags();
 
-/* ---------- camera ---------- */
+/* ================= camera ================= */
 $("camBtn").onclick = async () => {
   try{
     localStream = await navigator.mediaDevices.getUserMedia({
@@ -232,19 +464,26 @@ $("camBtn").onclick = async () => {
   }
 };
 
-/* ---------- peer plumbing ---------- */
+/* ================= peer ================= */
 const PEER_OPTS = { config:{ iceServers:[
   { urls:"stun:stun.l.google.com:19302" },
   { urls:"turn:openrelay.metered.ca:80", username:"openrelayproject", credential:"openrelayproject" },
   { urls:"turn:openrelay.metered.ca:443", username:"openrelayproject", credential:"openrelayproject" }
 ]}};
 
+function send(msg){ if(conn && connected) conn.send(msg); }
+
 function wireData(c){
   conn = c;
-  c.on("open", () => { connected = true; setLink("connected"); if(state.role==="host") c.send({t:"side",v:state.hostLeft}); });
+  c.on("open", () => {
+    connected = true; setLink("connected");
+    if(state.role==="host") c.send({t:"side",v:state.hostLeft});
+    c.send({t:"mask", v:state.myMask});
+  });
   c.on("data", d => {
     if(d.t==="snap") shoot(false);
     if(d.t==="side"){ state.hostLeft = d.v; updateTags(); }
+    if(d.t==="mask"){ state.herMask = d.v; if(d.v!=="none") ensureLandmarker(); }
   });
   c.on("close", () => { connected=false; setLink("she left"); });
 }
@@ -253,10 +492,7 @@ function wireCall(call){
   call.on("close", () => { remoteV.srcObject = null; setLink("call ended"); });
 }
 function peerErrors(p){
-  p.on("error", e => {
-    if(e.type==="peer-unavailable") setLink("no room with that code");
-    else setLink("connection problem: " + e.type);
-  });
+  p.on("error", e => setLink(e.type==="peer-unavailable" ? "no room with that code" : "problem: "+e.type));
 }
 
 $("createBtn").onclick = () => {
@@ -290,7 +526,14 @@ function join(code){
 $("joinBtn").onclick = () => join($("codeInput").value.trim().toUpperCase());
 $("codeInput").addEventListener("keydown", e => { if(e.key==="Enter") $("joinBtn").click(); });
 
-/* ---------- controls ---------- */
+/* ================= controls ================= */
+$("masks").onclick = async e => {
+  const b = e.target.closest("[data-m]"); if(!b) return;
+  state.myMask = b.dataset.m;
+  [...$("masks").children].forEach(c => c.setAttribute("aria-pressed", c===b));
+  if(state.myMask !== "none") await ensureLandmarker();
+  send({t:"mask", v:state.myMask});
+};
 $("filters").onclick = e => {
   const b = e.target.closest("[data-f]"); if(!b) return;
   state.filter = b.dataset.f;
@@ -298,15 +541,15 @@ $("filters").onclick = e => {
 };
 $("swapBtn").onclick = () => {
   state.hostLeft = !state.hostLeft; updateTags();
-  if(conn && connected) conn.send({t:"side", v:state.hostLeft});
+  send({t:"side", v:state.hostLeft});
 };
 
-/* ---------- the snap ---------- */
+/* ================= snap ================= */
 const CW=1088, CH=816;
 async function shoot(broadcast){
   if(state.busy) return;
   state.busy = true;
-  if(broadcast && conn && connected) conn.send({t:"snap"});
+  if(broadcast) send({t:"snap"});
   $("snapBtn").disabled = true;
   setBulbs(true); $("count").classList.add("on");
   for(let k=3;k>0;k--){ $("count").textContent = k; await wait(1000); }
@@ -333,7 +576,7 @@ function renderTray(){
 }
 $("clearBtn").onclick = () => { state.photos=[]; renderTray(); setStatus("Cleared"); };
 
-/* ---------- strip ---------- */
+/* ================= strip ================= */
 $("saveBtn").onclick = async () => {
   try{ await document.fonts.ready; }catch(e){}
   const n=state.photos.length, S=2, W=600, pad=26, gap=14, foot=104;
@@ -352,7 +595,7 @@ $("saveBtn").onclick = async () => {
   x.fillText(stamp, W/2, H-foot+66);
   c.toBlob(b=>{
     const a=document.createElement("a");
-    a.href=URL.createObjectURL(b); a.download="zaro-n-daffa-"+Date.now()+".png"; a.click();
+    a.href=URL.createObjectURL(b); a.download="zaro-&-daffa-"+Date.now()+".png"; a.click();
     setTimeout(()=>URL.revokeObjectURL(a.href),4000);
   },"image/png");
 };
